@@ -1,0 +1,31 @@
+name: telecom-knowledge-assistant
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: telecom-knowledge-api
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: telecom-knowledge-web
+    env_file:
+      - .env
+    environment:
+      API_BASE_URL: http://api:8000
+    command: ["streamlit", "run", "web/streamlit_app.py", "--server.address", "0.0.0.0", "--server.port", "8501"]
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+    volumes:
+      - ./data:/app/data
