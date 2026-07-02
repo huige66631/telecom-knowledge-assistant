@@ -384,7 +384,7 @@ def render_header(backend_ok: bool) -> None:
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">当前链路</div>
-                    <div class="stat-value">Hybrid RAG + LangGraph</div>
+                    <div class="stat-value">Hybrid RAG + Query Rewrite</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">已上传文档</div>
@@ -559,6 +559,8 @@ def render_chat_panel() -> None:
                     "route": latest.get("route"),
                     "matched_chunks": latest.get("matched_chunks"),
                     "session_id": latest.get("session_id"),
+                    "rewrite_strategy": latest.get("rewrite_strategy"),
+                    "rewritten_question": latest.get("rewritten_question"),
                 }
             )
         else:

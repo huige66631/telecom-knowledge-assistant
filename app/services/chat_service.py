@@ -22,9 +22,14 @@ class ChatService:
     def reply(self, request: ChatRequest) -> ChatResponse:
         session = session_memory_store.get_or_create(request.session_id)
         self.logger.info("Handling chat request for session '%s'.", session.session_id)
+        recent_turns = [
+            {"role": turn.role, "content": turn.content}
+            for turn in session.turns
+        ]
         state = self.agent.invoke_with_context(
             question=request.question,
             conversation_summary=session.summary,
+            recent_turns=recent_turns,
         )
         matches = state.get("matches", [])
         citations = self.citation_service.build_citations(matches)
@@ -46,4 +51,6 @@ class ChatService:
             matched_chunks=len(matches),
             session_id=session.session_id,
             memory_summary=session.summary,
+            rewritten_question=state.get("rewritten_question"),
+            rewrite_strategy=state.get("rewrite_strategy"),
         )

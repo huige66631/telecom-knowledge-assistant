@@ -20,6 +20,7 @@
 
 - `Python + FastAPI + Streamlit + LangGraph + ChromaDB`
 - 轻量混合检索：`关键词检索 + 本地向量检索 + RRF`
+- 上下文感知 Query Rewrite：规则改写优先，检索不足时可选 LLM 改写兜底
 - `KB-first` 路由策略：优先查知识库，再决定回答、澄清或回退
 - 生成模型使用 `DeepSeek API`
 - 向量嵌入使用本地 deterministic embedding，不依赖第二个 embedding API key
@@ -59,6 +60,7 @@
 
 - DeepSeek API
 - Local deterministic embeddings
+- Context-aware query rewrite
 - Keyword retrieval
 - Local vector retrieval
 - Reciprocal Rank Fusion (RRF)
@@ -72,6 +74,7 @@ User
       └─ Chat Service
            ├─ Session Memory (SQLite)
            ├─ KB-first Agent (LangGraph)
+           ├─ Query Rewrite
            │    ├─ Hybrid Retriever
            │    │    ├─ Keyword Search
            │    │    ├─ Local Vector Search
@@ -91,6 +94,7 @@ User
 - 文本清洗、切分、索引构建
 - Chroma 本地向量索引
 - 混合检索与 RRF 融合
+- 多轮追问的 Query Rewrite
 - 基于证据的回答生成
 - 引用来源展示
 - 会话级多轮记忆
@@ -224,6 +228,20 @@ docker compose up --build
 - 后端服务重启后，会话仍可恢复
 - 但它不是长期用户画像系统
 
+## Query Rewrite
+
+当前项目实现了轻量的上下文感知 Query Rewrite：
+
+- 优先使用规则式改写补全代词、省略主语和追问上下文
+- 当规则改写后的检索结果不足时，可选触发一次 LLM 改写兜底
+- 改写结果会参与 Hybrid RAG 检索，并在前端路由信息中展示
+
+适合处理的问题包括：
+
+- `那它支持哪些协议？`
+- `继续问：热插拔恢复时间要求是多少？`
+- `这个限制主要体现在哪？`
+
 ## Demo Materials
 
 仓库内置了两份通信/电子行业样例资料：
@@ -251,6 +269,7 @@ pytest
 - 文本切分
 - 关键词检索
 - 轻量重排
+- Query Rewrite
 - 引用格式化
 - 异常模型
 - 会话记忆恢复

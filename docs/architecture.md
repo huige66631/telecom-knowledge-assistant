@@ -15,7 +15,9 @@ flowchart TD
 
     C --> M["Session Memory (SQLite)"]
     C --> G["KB-first Agent Graph"]
+    C --> QR["Query Rewrite"]
 
+    QR --> R
     G --> R["Hybrid Retriever"]
     R --> KS["Keyword Search"]
     R --> VS["Local Vector Search"]
@@ -31,6 +33,7 @@ flowchart TD
 ## 说明
 
 - 文档入库链路：`上传 -> 解析 -> 切分 -> 向量入库`
-- 问答链路：`检索 -> 路由 -> 生成 -> 引用返回`
+- 问答链路：`Query Rewrite -> 检索 -> 路由 -> 生成 -> 引用返回`
 - Agent 策略：`KB-first`
 - 记忆策略：会话级短期记忆，使用 `SQLite` 做本地持久化
+- Query Rewrite 策略：规则改写优先，检索不足时可选 LLM 改写兜底

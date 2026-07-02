@@ -23,6 +23,8 @@ class ChatResponse(BaseModel):
     matched_chunks: int = 0
     session_id: str | None = None
     memory_summary: str | None = None
+    rewritten_question: str | None = None
+    rewrite_strategy: str | None = None
 
 
 class ConversationTurnResponse(BaseModel):

@@ -6,6 +6,7 @@ from app.agent.router import KBFirstRouter
 from app.agent.state import AgentState
 from app.rag.retriever import KnowledgeRetriever
 from app.services.generation_service import GenerationService
+from app.services.query_rewrite_service import QueryRewriteService
 
 
 class KnowledgeAgentGraph:
@@ -14,17 +15,24 @@ class KnowledgeAgentGraph:
     def __init__(self) -> None:
         self.retriever = KnowledgeRetriever()
         self.generator = GenerationService()
+        self.rewriter = QueryRewriteService(self.generator)
         self.router = KBFirstRouter()
         self.graph = self._build_graph().compile()
 
     def invoke(self, question: str) -> AgentState:
         return self.graph.invoke({"question": question})
 
-    def invoke_with_context(self, question: str, conversation_summary: str) -> AgentState:
+    def invoke_with_context(
+        self,
+        question: str,
+        conversation_summary: str,
+        recent_turns: list[dict[str, str]] | None = None,
+    ) -> AgentState:
         return self.graph.invoke(
             {
                 "question": question,
                 "conversation_summary": conversation_summary,
+                "recent_turns": recent_turns or [],
             }
         )
 
@@ -54,8 +62,40 @@ class KnowledgeAgentGraph:
         return graph
 
     def _retrieve(self, state: AgentState) -> AgentState:
-        matches = self.retriever.search(state["question"])
-        return {"matches": matches}
+        original_question = state["question"]
+        conversation_summary = state.get("conversation_summary", "")
+        recent_turns = state.get("recent_turns", [])
+
+        rewrite_result = self.rewriter.rewrite_with_rules(
+            question=original_question,
+            conversation_summary=conversation_summary,
+            recent_turns=recent_turns,
+        )
+        matches = self.retriever.search(rewrite_result.rewritten_question)
+        chosen_result = rewrite_result
+
+        if len(matches) < 1 and self.rewriter.should_try_llm_fallback(
+            question=original_question,
+            conversation_summary=conversation_summary,
+            recent_turns=recent_turns,
+        ):
+            llm_result = self.rewriter.rewrite_with_llm(
+                question=original_question,
+                conversation_summary=conversation_summary,
+                recent_turns=recent_turns,
+            )
+            if llm_result.rewritten_question != rewrite_result.rewritten_question:
+                llm_matches = self.retriever.search(llm_result.rewritten_question)
+                if len(llm_matches) > len(matches):
+                    matches = llm_matches
+                    chosen_result = llm_result
+
+        return {
+            "matches": matches,
+            "retrieval_query": chosen_result.rewritten_question,
+            "rewritten_question": chosen_result.rewritten_question,
+            "rewrite_strategy": chosen_result.strategy,
+        }
 
     def _route(self, state: AgentState) -> str:
         return self.router.decide(state)

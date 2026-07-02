@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     keyword_min_score: float = 1.0
     vector_max_distance: float = 1.6
     min_answerable_matches: int = 1
+    query_rewrite_enabled: bool = True
+    llm_query_rewrite_enabled: bool = True
+    query_rewrite_context_turns: int = 4
 
     model_config = SettingsConfigDict(
         env_file=".env",

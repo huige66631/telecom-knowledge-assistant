@@ -19,6 +19,18 @@ SYSTEM_PROMPT = """
 """.strip()
 
 
+QUERY_REWRITE_SYSTEM_PROMPT = """
+你是企业知识库检索前的 Query Rewrite 助手。
+
+你的任务不是回答问题，而是把用户当前问题改写成更适合知识库检索的独立问题，要求：
+1. 保留用户原意，不要扩写成新需求。
+2. 如果当前问题依赖上下文，请补全代词、省略主语、简称或上一轮隐含对象。
+3. 输出只保留一条改写后的检索问题，不要解释，不要加引号，不要分点。
+4. 如果原问题已经足够独立清晰，就原样输出。
+5. 改写结果尽量简洁，偏向企业文档检索表达。
+""".strip()
+
+
 def build_rag_user_prompt(
     question: str,
     matches: list[RetrievedChunk],
@@ -57,4 +69,33 @@ def build_rag_user_prompt(
 - 再在句中或句末标注引用编号，如 [1]
 - 若多个片段共同支持一个结论，可以写成 [1][2]
 - 若无法根据证据回答，请明确说明证据不足
+""".strip()
+
+
+def build_query_rewrite_prompt(
+    question: str,
+    conversation_summary: str = "",
+    recent_turns: list[dict[str, str]] | None = None,
+) -> str:
+    turn_blocks: list[str] = []
+    for turn in (recent_turns or [])[-4:]:
+        role = turn.get("role", "unknown")
+        content = turn.get("content", "").strip()
+        if content:
+            turn_blocks.append(f"{role}: {content}")
+
+    turn_text = "\n".join(turn_blocks) if turn_blocks else "无"
+    summary_text = conversation_summary or "无"
+
+    return f"""
+会话摘要：
+{summary_text}
+
+最近对话：
+{turn_text}
+
+当前用户问题：
+{question}
+
+请输出改写后的检索问题：
 """.strip()
