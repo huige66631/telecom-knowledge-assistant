@@ -140,6 +140,17 @@ User
 
 ## Quick Start
 
+### 一键启动
+
+Windows 下可直接双击项目根目录中的：
+
+- `start_app.bat`：一键启动 FastAPI 和 Streamlit，并自动打开浏览器
+- `stop_app.bat`：一键停止服务
+
+如果默认端口 `8000 / 8501` 已被其他本地项目占用，启动脚本会自动切换到可用端口。
+
+如果是第一次运行，仍然需要先准备好 `.env` 和依赖安装。
+
 ### 1. Install dependencies
 
 ```bash

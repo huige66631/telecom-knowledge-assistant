@@ -12,6 +12,7 @@ htmlcov/
 Thumbs.db
 run-logs/
 *.log
+*.pid
 tests/.session_memory_test_*.db
 tests/.session_memory_test_*.json
 *.sqlite3

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import os
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -14,7 +16,26 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
+
+def resolve_api_base_url() -> str:
+    env_url = os.getenv("API_BASE_URL")
+    if env_url:
+        return env_url
+
+    runtime_file = Path(__file__).resolve().parents[1] / "run-logs" / "runtime.json"
+    if runtime_file.exists():
+        try:
+            payload = json.loads(runtime_file.read_text(encoding="utf-8"))
+            runtime_url = payload.get("api_base_url")
+            if isinstance(runtime_url, str) and runtime_url.strip():
+                return runtime_url.strip()
+        except Exception:
+            pass
+
+    return "http://127.0.0.1:8000"
+
+
+API_BASE_URL = resolve_api_base_url()
 
 
 def init_state() -> None:
