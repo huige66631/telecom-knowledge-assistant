@@ -28,7 +28,8 @@ function Get-PythonPath {
 
 function Test-ExistingProcess {
     param(
-        [string]$PidFile
+        [string]$PidFile,
+        [string]$ExpectedCommandLine = ""
     )
 
     if (-not (Test-Path $PidFile)) {
@@ -43,6 +44,19 @@ function Test-ExistingProcess {
 
     $process = Get-Process -Id ([int]$rawPid) -ErrorAction SilentlyContinue
     if ($process) {
+        if ($ExpectedCommandLine) {
+            try {
+                $cimProcess = Get-CimInstance Win32_Process -Filter "ProcessId = $rawPid"
+                $commandLine = $cimProcess.CommandLine
+                if (-not $commandLine -or $commandLine -notlike "*$ExpectedCommandLine*") {
+                    Remove-Item $PidFile -Force -ErrorAction SilentlyContinue
+                    return $null
+                }
+            } catch {
+                Remove-Item $PidFile -Force -ErrorAction SilentlyContinue
+                return $null
+            }
+        }
         return $process
     }
 
@@ -119,11 +133,12 @@ function Start-ServiceProcess {
         [string]$ServiceName,
         [string]$PidFile,
         [string]$ArgumentLine,
+        [string]$ExpectedCommandLine,
         [string]$OutLog,
         [string]$ErrLog
     )
 
-    $existing = Test-ExistingProcess -PidFile $PidFile
+    $existing = Test-ExistingProcess -PidFile $PidFile -ExpectedCommandLine $ExpectedCommandLine
     if ($existing) {
         Write-Host ("{0} is already running. PID={1}" -f $ServiceName, $existing.Id)
         return $existing
@@ -148,8 +163,8 @@ if (-not (Test-Path (Join-Path $projectRoot ".env"))) {
     throw ".env was not found. Copy .env.example to .env and set DEEPSEEK_API_KEY first."
 }
 
-$existingApi = Test-ExistingProcess -PidFile $apiPidFile
-$existingWeb = Test-ExistingProcess -PidFile $webPidFile
+$existingApi = Test-ExistingProcess -PidFile $apiPidFile -ExpectedCommandLine "uvicorn app.api.main:app"
+$existingWeb = Test-ExistingProcess -PidFile $webPidFile -ExpectedCommandLine "streamlit run web/streamlit_app.py"
 $existingRuntime = Load-RuntimeState
 
 if ($existingApi -and $existingWeb -and $existingRuntime) {
@@ -169,6 +184,7 @@ $apiProcess = Start-ServiceProcess `
     -ServiceName "FastAPI" `
     -PidFile $apiPidFile `
     -ArgumentLine "-m uvicorn app.api.main:app --host 127.0.0.1 --port $apiPort" `
+    -ExpectedCommandLine "uvicorn app.api.main:app" `
     -OutLog (Join-Path $logDir "api.out.log") `
     -ErrLog (Join-Path $logDir "api.err.log")
 
@@ -176,6 +192,7 @@ $webProcess = Start-ServiceProcess `
     -ServiceName "Streamlit" `
     -PidFile $webPidFile `
     -ArgumentLine "-m streamlit run web/streamlit_app.py --server.address 127.0.0.1 --server.port $webPort" `
+    -ExpectedCommandLine "streamlit run web/streamlit_app.py" `
     -OutLog (Join-Path $logDir "web.out.log") `
     -ErrLog (Join-Path $logDir "web.err.log")
 

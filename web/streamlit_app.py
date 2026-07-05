@@ -38,6 +38,29 @@ def resolve_api_base_url() -> str:
 API_BASE_URL = resolve_api_base_url()
 
 
+def discover_healthy_api_base_url() -> str:
+    candidates: list[str] = []
+
+    runtime_candidate = resolve_api_base_url()
+    if runtime_candidate:
+        candidates.append(runtime_candidate)
+
+    for port in range(8000, 8011):
+        candidate = f"http://127.0.0.1:{port}"
+        if candidate not in candidates:
+            candidates.append(candidate)
+
+    for candidate in candidates:
+        try:
+            response = requests.get(f"{candidate}/health", timeout=1.5)
+            response.raise_for_status()
+            return candidate
+        except Exception:
+            continue
+
+    return runtime_candidate
+
+
 def init_state() -> None:
     defaults = {
         "chat_history": [],
@@ -288,6 +311,8 @@ def inject_styles() -> None:
 
 
 def check_backend() -> tuple[bool, dict[str, Any] | str]:
+    global API_BASE_URL
+    API_BASE_URL = discover_healthy_api_base_url()
     try:
         response = requests.get(f"{API_BASE_URL}/health", timeout=10)
         response.raise_for_status()
