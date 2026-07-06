@@ -23,5 +23,7 @@ data/raw/*
 !data/raw/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
+data/page_previews/
+samples/page_previews/
 data/session_memory.db
 data/session_memory.json

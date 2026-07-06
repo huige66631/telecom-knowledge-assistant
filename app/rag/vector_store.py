@@ -84,6 +84,39 @@ class ChromaVectorStore:
             )
         return chunks
 
+    def get_chunks_by_page(self, source_name: str, page: int) -> list[dict[str, object]]:
+        return self._filter_chunks(source_name=source_name, page=page)
+
+    def get_chunks_by_element(
+        self,
+        source_name: str,
+        element_type: str,
+        page: int | None = None,
+    ) -> list[dict[str, object]]:
+        return self._filter_chunks(source_name=source_name, page=page, element_type=element_type)
+
+    def _filter_chunks(
+        self,
+        source_name: str,
+        page: int | None = None,
+        element_type: str | None = None,
+    ) -> list[dict[str, object]]:
+        chunks = self.get_all_chunks()
+        filtered: list[dict[str, object]] = []
+
+        for chunk in chunks:
+            metadata = chunk.get("metadata", {}) or {}
+            if str(metadata.get("source_name", "")) != source_name:
+                continue
+            if page is not None and int(metadata.get("page", -1)) != page:
+                continue
+            if element_type is not None and str(metadata.get("element_type", "")) != element_type:
+                continue
+            filtered.append(chunk)
+
+        filtered.sort(key=lambda item: int((item.get("metadata", {}) or {}).get("chunk_index", 0)))
+        return filtered
+
     def _sanitize_metadata(
         self,
         metadata: dict[str, str | int | float | bool],

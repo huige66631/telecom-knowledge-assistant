@@ -9,6 +9,9 @@ requests
 openai
 pypdf
 python-docx
+pdfplumber
+pymupdf
+rapidocr_onnxruntime
 langchain==0.3.26
 langgraph==0.6.0
 chromadb==1.0.15

@@ -28,6 +28,17 @@ class Settings(BaseSettings):
     query_rewrite_enabled: bool = True
     llm_query_rewrite_enabled: bool = True
     query_rewrite_context_turns: int = 4
+    ocr_enabled: bool = True
+    figure_vision_enabled: bool = True
+    advanced_pdf_backend: str = "basic"
+    mineru_enabled: bool = True
+    mineru_command: str = "mineru"
+    mineru_api_url: str = ""
+    mineru_backend: str = "pipeline"
+    mineru_method: str = "auto"
+    mineru_lang: str = "ch"
+    mineru_effort: str = "medium"
+    mineru_timeout_seconds: int = 600
 
     model_config = SettingsConfigDict(
         env_file=".env",

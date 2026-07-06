@@ -12,6 +12,10 @@ class Citation(BaseModel):
     chunk_id: str | None = None
     score: float | None = None
     page: int | None = None
+    element_type: str | None = None
+    section_title: str | None = None
+    table_title: str | None = None
+    figure_caption: str | None = None
     keyword_score: float | None = None
     fused_score: float | None = None
 

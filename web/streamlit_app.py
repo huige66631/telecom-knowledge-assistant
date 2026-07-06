@@ -38,6 +38,10 @@ def resolve_api_base_url() -> str:
 API_BASE_URL = resolve_api_base_url()
 
 
+def get_session_runtime_file() -> Path:
+    return Path(__file__).resolve().parents[1] / "run-logs" / "last_session.json"
+
+
 def discover_healthy_api_base_url() -> str:
     candidates: list[str] = []
 
@@ -73,6 +77,36 @@ def init_state() -> None:
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
+
+
+def load_persisted_session_id() -> str | None:
+    runtime_file = get_session_runtime_file()
+    if not runtime_file.exists():
+        return None
+
+    try:
+        payload = json.loads(runtime_file.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+    session_id = payload.get("session_id")
+    if isinstance(session_id, str) and session_id.strip():
+        return session_id.strip()
+    return None
+
+
+def persist_session_id(session_id: str | None) -> None:
+    runtime_file = get_session_runtime_file()
+    runtime_file.parent.mkdir(parents=True, exist_ok=True)
+
+    if not session_id:
+        runtime_file.unlink(missing_ok=True)
+        return
+
+    runtime_file.write_text(
+        json.dumps({"session_id": session_id}, ensure_ascii=False),
+        encoding="utf-8",
+    )
 
 
 def inject_styles() -> None:
@@ -325,15 +359,17 @@ def sync_query_params() -> None:
     session_id = st.session_state.active_session_id
     if session_id:
         st.query_params["session_id"] = session_id
+        persist_session_id(session_id)
     elif "session_id" in st.query_params:
         del st.query_params["session_id"]
+        persist_session_id(None)
 
 
-def restore_session_from_query_params() -> None:
+def restore_session() -> None:
     if st.session_state.session_restored:
         return
 
-    session_id = st.query_params.get("session_id")
+    session_id = st.query_params.get("session_id") or load_persisted_session_id()
     if not session_id:
         st.session_state.session_restored = True
         return
@@ -354,9 +390,14 @@ def restore_session_from_query_params() -> None:
             "matched_chunks": 0,
             "route": "restored_session",
         }
+        sync_query_params()
     except Exception:
         st.session_state.active_session_id = None
         st.session_state.chat_history = []
+        st.session_state.latest_response = None
+        persist_session_id(None)
+        if "session_id" in st.query_params:
+            del st.query_params["session_id"]
     finally:
         st.session_state.session_restored = True
 
@@ -376,7 +417,7 @@ def upload_documents(uploaded_files: list[Any]) -> None:
                         uploaded_file.type or "application/octet-stream",
                     )
                 },
-                timeout=120,
+                timeout=300,
             )
             response.raise_for_status()
             results.append(response.json())
@@ -631,8 +672,9 @@ def render_chat_panel() -> None:
 def main() -> None:
     init_state()
     inject_styles()
-    restore_session_from_query_params()
     backend_ok, backend_payload = check_backend()
+    if backend_ok:
+        restore_session()
 
     render_header(backend_ok)
 

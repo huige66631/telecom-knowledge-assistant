@@ -6,8 +6,10 @@ from app.core.config import get_settings
 from app.core.exceptions import ConfigurationError
 from app.core.logging import get_logger
 from app.core.prompts import (
+    FIGURE_DESCRIPTION_SYSTEM_PROMPT,
     QUERY_REWRITE_SYSTEM_PROMPT,
     SYSTEM_PROMPT,
+    build_figure_description_prompt,
     build_query_rewrite_prompt,
     build_rag_user_prompt,
 )
@@ -85,3 +87,28 @@ class GenerationService:
             self.logger.warning("DeepSeek returned an empty query rewrite.")
             raise ConfigurationError("Query rewrite response was empty.")
         return text.splitlines()[0].strip()
+
+    def describe_figure(
+        self,
+        figure_caption: str,
+        page_summary: str = "",
+        section_title: str = "",
+    ) -> str:
+        prompt = build_figure_description_prompt(
+            figure_caption=figure_caption,
+            page_summary=page_summary,
+            section_title=section_title,
+        )
+
+        response = self.client.chat.completions.create(
+            model=self.settings.deepseek_model,
+            messages=[
+                {"role": "system", "content": FIGURE_DESCRIPTION_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.1,
+        )
+        text = (response.choices[0].message.content or "").strip()
+        if not text:
+            raise ConfigurationError("Figure description response was empty.")
+        return text

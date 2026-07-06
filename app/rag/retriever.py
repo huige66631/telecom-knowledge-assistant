@@ -17,6 +17,12 @@ class RetrievedChunk:
     source_path: str
     page: int | None
     distance: float | None
+    element_type: str = "paragraph"
+    section_title: str = ""
+    parent_section: str = ""
+    table_title: str = ""
+    figure_caption: str = ""
+    page_summary: str = ""
     keyword_score: float | None = None
     vector_rank: int | None = None
     keyword_rank: int | None = None
@@ -116,6 +122,12 @@ class KnowledgeRetriever:
             source_path=str(metadata.get("source_path", "")),
             page=int(metadata["page"]) if "page" in metadata else None,
             distance=match["distance"] if isinstance(match.get("distance"), float) else None,
+            element_type=str(metadata.get("element_type", "paragraph")),
+            section_title=str(metadata.get("section_title", "")),
+            parent_section=str(metadata.get("parent_section", "")),
+            table_title=str(metadata.get("table_title", "")),
+            figure_caption=str(metadata.get("figure_caption", "")),
+            page_summary=str(metadata.get("page_summary", "")),
             keyword_score=(
                 float(match["keyword_score"])
                 if isinstance(match.get("keyword_score"), (float, int))

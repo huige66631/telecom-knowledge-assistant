@@ -4,6 +4,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import UploadFile
+from starlette.concurrency import run_in_threadpool
 
 from app.core.config import get_settings
 from app.core.exceptions import BadRequestError
@@ -40,15 +41,23 @@ class IngestService:
         document_id = f"doc-{uuid4().hex[:12]}"
         self.logger.info("Starting ingest for file '%s' as document '%s'.", upload_file.filename, document_id)
         raw_path = await self._save_upload(upload_file=upload_file, document_id=document_id)
+        return await run_in_threadpool(
+            self._process_saved_upload,
+            raw_path,
+            document_id,
+            upload_file.filename,
+        )
+
+    def _process_saved_upload(self, raw_path: Path, document_id: str, source_name: str) -> IngestResponse:
         loaded_document = self.loader.load(
             file_path=raw_path,
             document_id=document_id,
-            source_name=upload_file.filename,
+            source_name=source_name,
         )
 
         processed_path = self._save_processed_text(
             document_id=document_id,
-            source_name=upload_file.filename,
+            source_name=source_name,
             text=loaded_document.full_text,
         )
 
@@ -58,7 +67,7 @@ class IngestService:
 
         return IngestResponse(
             status="success",
-            message=f"Indexed {indexed_count} chunks from '{upload_file.filename}'.",
+            message=f"Indexed {indexed_count} chunks from '{source_name}'.",
             document_id=document_id,
             chunks_indexed=indexed_count,
             source_path=str(processed_path),

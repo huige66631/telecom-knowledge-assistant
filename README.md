@@ -208,6 +208,37 @@ docker compose up --build
 - FastAPI: `http://127.0.0.1:8000`
 - Streamlit: `http://127.0.0.1:8501`
 
+## Advanced PDF Parsing (Optional)
+
+默认安装保持轻量，复杂 PDF 增强链路做成可选能力：
+
+```bash
+pip install -r requirements-advanced-pdf.txt
+```
+
+推荐环境变量：
+
+```env
+ADVANCED_PDF_BACKEND=basic
+MINERU_ENABLED=true
+MINERU_COMMAND=mineru
+MINERU_API_URL=
+MINERU_BACKEND=pipeline
+MINERU_METHOD=auto
+MINERU_LANG=ch
+MINERU_EFFORT=medium
+MINERU_TIMEOUT_SECONDS=600
+```
+
+说明：
+
+- `basic`：默认轻量解析，适合日常演示和简历项目使用
+- `auto`：优先尝试 MinerU，失败时自动回退到当前本地 PDF 解析链路
+- `pipeline`：更稳，适合文本页、扫描页 OCR、表格抽取
+- `hybrid-*`：更适合图页 / 图表增强，但依赖更重
+- 本机没有 `mineru` 命令时，项目仍然可以正常运行，只是使用轻量解析方案
+- 如果已经单独启动 `mineru-api`，可通过 `MINERU_API_URL` 复用服务，减少每次解析时的冷启动
+
 ## API Endpoints
 
 - `GET /health`：健康检查

@@ -5,6 +5,7 @@ from langgraph.graph import END, StateGraph
 from app.agent.router import KBFirstRouter
 from app.agent.state import AgentState
 from app.rag.retriever import KnowledgeRetriever
+from app.services.document_tool_service import DocumentToolService
 from app.services.generation_service import GenerationService
 from app.services.query_rewrite_service import QueryRewriteService
 
@@ -15,6 +16,7 @@ class KnowledgeAgentGraph:
     def __init__(self) -> None:
         self.retriever = KnowledgeRetriever()
         self.generator = GenerationService()
+        self.document_tools = DocumentToolService()
         self.rewriter = QueryRewriteService(self.generator)
         self.router = KBFirstRouter()
         self.graph = self._build_graph().compile()
@@ -73,6 +75,9 @@ class KnowledgeAgentGraph:
         )
         matches = self.retriever.search(rewrite_result.rewritten_question)
         chosen_result = rewrite_result
+        page_evidence = self._expand_page_context(matches, original_question)
+        table_evidence = self._extract_table_context(matches, original_question)
+        figure_evidence = self._describe_figure_context(matches, original_question)
 
         if len(matches) < 1 and self.rewriter.should_try_llm_fallback(
             question=original_question,
@@ -89,9 +94,15 @@ class KnowledgeAgentGraph:
                 if len(llm_matches) > len(matches):
                     matches = llm_matches
                     chosen_result = llm_result
+                    page_evidence = self._expand_page_context(matches, original_question)
+                    table_evidence = self._extract_table_context(matches, original_question)
+                    figure_evidence = self._describe_figure_context(matches, original_question)
 
         return {
             "matches": matches,
+            "page_evidence": page_evidence,
+            "table_evidence": table_evidence,
+            "figure_evidence": figure_evidence,
             "retrieval_query": chosen_result.rewritten_question,
             "rewritten_question": chosen_result.rewritten_question,
             "rewrite_strategy": chosen_result.strategy,
@@ -102,9 +113,15 @@ class KnowledgeAgentGraph:
 
     def _answer(self, state: AgentState) -> AgentState:
         try:
+            evidence = self._merge_evidence(
+                state.get("matches", []),
+                state.get("page_evidence", []),
+                state.get("table_evidence", []),
+                state.get("figure_evidence", []),
+            )
             answer = self.generator.generate_answer(
                 state["question"],
-                state.get("matches", []),
+                evidence,
                 conversation_summary=state.get("conversation_summary", ""),
             )
             return {"answer": answer, "route": "answer", "used_fallback": False}
@@ -132,7 +149,12 @@ class KnowledgeAgentGraph:
         }
 
     def _fallback(self, state: AgentState) -> AgentState:
-        matches = state.get("matches", [])
+        matches = self._merge_evidence(
+            state.get("matches", []),
+            state.get("page_evidence", []),
+            state.get("table_evidence", []),
+            state.get("figure_evidence", []),
+        )
         if not matches:
             return {
                 "answer": "暂时没有可回退的检索结果，请换一个更具体的问题。",
@@ -152,3 +174,59 @@ class KnowledgeAgentGraph:
             "route": "fallback",
             "used_fallback": True,
         }
+
+    def _expand_page_context(self, matches: list, question: str) -> list:
+        if not matches:
+            return []
+        if not self._needs_page_read(question, matches):
+            return []
+
+        first_match = matches[0]
+        if first_match.page is None:
+            return []
+
+        return self.document_tools.read_page(source_name=first_match.source, page=first_match.page)[:4]
+
+    def _extract_table_context(self, matches: list, question: str) -> list:
+        if not matches:
+            return []
+        if not self._needs_table_read(question, matches):
+            return []
+
+        first_match = matches[0]
+        return self.document_tools.extract_tables(source_name=first_match.source, page=first_match.page)[:4]
+
+    def _describe_figure_context(self, matches: list, question: str) -> list:
+        if not matches:
+            return []
+        if not self._needs_figure_read(question, matches):
+            return []
+
+        first_match = matches[0]
+        return self.document_tools.describe_figures(source_name=first_match.source, page=first_match.page)[:3]
+
+    def _needs_page_read(self, question: str, matches: list) -> bool:
+        if len(matches) <= 1:
+            return True
+        return any(keyword in question for keyword in ("整页", "本页", "这一页", "上下文", "章节", "说明"))
+
+    def _needs_table_read(self, question: str, matches: list) -> bool:
+        if any(match.element_type == "table" for match in matches):
+            return True
+        return any(keyword in question for keyword in ("表", "参数", "指标", "对比", "规格", "阈值"))
+
+    def _needs_figure_read(self, question: str, matches: list) -> bool:
+        if any(match.element_type == "figure_caption" for match in matches):
+            return True
+        return any(keyword in question for keyword in ("图", "拓扑", "结构图", "示意图", "架构图", "连接关系"))
+
+    def _merge_evidence(self, *groups: list) -> list:
+        merged = []
+        seen = set()
+        for group in groups:
+            for item in group:
+                if item.chunk_id in seen:
+                    continue
+                seen.add(item.chunk_id)
+                merged.append(item)
+        return merged[:8]

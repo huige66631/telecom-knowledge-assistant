@@ -17,6 +17,10 @@ class CitationService:
                     chunk_id=match.chunk_id,
                     score=match.distance,
                     page=match.page,
+                    element_type=match.element_type,
+                    section_title=match.section_title,
+                    table_title=match.table_title,
+                    figure_caption=match.figure_caption,
                     keyword_score=match.keyword_score,
                     fused_score=match.fused_score,
                 )

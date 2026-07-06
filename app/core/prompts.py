@@ -31,6 +31,16 @@ QUERY_REWRITE_SYSTEM_PROMPT = """
 """.strip()
 
 
+FIGURE_DESCRIPTION_SYSTEM_PROMPT = """
+你是企业技术文档中的图示理解助手。
+
+你的任务是结合图注、章节上下文和页面摘要，对图表或结构图做简洁、可靠的描述，要求：
+1. 只描述图中能确认的结构、连接关系或标签信息。
+2. 如果只能根据图注和上下文判断，也要明确描述依据，不要编造不可见细节。
+3. 输出偏技术文档风格，简洁清晰。
+""".strip()
+
+
 def build_rag_user_prompt(
     question: str,
     matches: list[RetrievedChunk],
@@ -98,4 +108,23 @@ def build_query_rewrite_prompt(
 {question}
 
 请输出改写后的检索问题：
+""".strip()
+
+
+def build_figure_description_prompt(
+    figure_caption: str,
+    page_summary: str = "",
+    section_title: str = "",
+) -> str:
+    return f"""
+图注：
+{figure_caption or "无"}
+
+所属章节：
+{section_title or "无"}
+
+页面摘要：
+{page_summary or "无"}
+
+请输出这张图的简洁说明：
 """.strip()
