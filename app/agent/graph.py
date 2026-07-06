@@ -76,6 +76,7 @@ class KnowledgeAgentGraph:
         matches = self.retriever.search(rewrite_result.rewritten_question)
         chosen_result = rewrite_result
         page_evidence = self._expand_page_context(matches, original_question)
+        section_evidence = self._expand_section_context(matches, original_question)
         table_evidence = self._extract_table_context(matches, original_question)
         figure_evidence = self._describe_figure_context(matches, original_question)
 
@@ -95,12 +96,14 @@ class KnowledgeAgentGraph:
                     matches = llm_matches
                     chosen_result = llm_result
                     page_evidence = self._expand_page_context(matches, original_question)
+                    section_evidence = self._expand_section_context(matches, original_question)
                     table_evidence = self._extract_table_context(matches, original_question)
                     figure_evidence = self._describe_figure_context(matches, original_question)
 
         return {
             "matches": matches,
             "page_evidence": page_evidence,
+            "section_evidence": section_evidence,
             "table_evidence": table_evidence,
             "figure_evidence": figure_evidence,
             "retrieval_query": chosen_result.rewritten_question,
@@ -116,6 +119,7 @@ class KnowledgeAgentGraph:
             evidence = self._merge_evidence(
                 state.get("matches", []),
                 state.get("page_evidence", []),
+                state.get("section_evidence", []),
                 state.get("table_evidence", []),
                 state.get("figure_evidence", []),
             )
@@ -130,20 +134,14 @@ class KnowledgeAgentGraph:
 
     def _clarify(self, state: AgentState) -> AgentState:
         return {
-            "answer": (
-                "当前知识库里没有找到足够相关的资料。请补充更具体的设备型号、协议名称、"
-                "功能模块或文档关键词，我再继续检索。"
-            ),
+            "answer": "当前知识库里没有找到足够相关的资料。请补充更具体的模块名、章节名、参数名或关键词，我再继续检索。",
             "route": "clarify",
             "used_fallback": False,
         }
 
     def _out_of_scope(self, state: AgentState) -> AgentState:
         return {
-            "answer": (
-                "这个问题看起来不属于当前通信/电子行业企业资料知识库的范围。"
-                "如果你希望我回答，请尽量改成与产品手册、FAQ、技术规范或测试文档相关的问题。"
-            ),
+            "answer": "这个问题看起来不属于当前知识库的资料范围。请尽量改成与产品手册、FAQ、技术规范或测试文档相关的问题。",
             "route": "out_of_scope",
             "used_fallback": False,
         }
@@ -152,12 +150,13 @@ class KnowledgeAgentGraph:
         matches = self._merge_evidence(
             state.get("matches", []),
             state.get("page_evidence", []),
+            state.get("section_evidence", []),
             state.get("table_evidence", []),
             state.get("figure_evidence", []),
         )
         if not matches:
             return {
-                "answer": "暂时没有可回退的检索结果，请换一个更具体的问题。",
+                "answer": "暂时没有可返回的检索结果，请换一个更具体的问题。",
                 "route": "fallback",
                 "used_fallback": True,
             }
@@ -187,6 +186,27 @@ class KnowledgeAgentGraph:
 
         return self.document_tools.read_page(source_name=first_match.source, page=first_match.page)[:4]
 
+    def _expand_section_context(self, matches: list, question: str) -> list:
+        if not matches:
+            return []
+        if not self._needs_section_read(question):
+            return []
+
+        for match in matches[:3]:
+            section_title = match.section_title or ""
+            if not section_title:
+                continue
+
+            section_chunks = self.document_tools.read_section(
+                source_name=match.source,
+                section_title=section_title,
+                page=match.page,
+            )
+            if section_chunks:
+                return section_chunks[:6]
+
+        return []
+
     def _extract_table_context(self, matches: list, question: str) -> list:
         if not matches:
             return []
@@ -209,6 +229,9 @@ class KnowledgeAgentGraph:
         if len(matches) <= 1:
             return True
         return any(keyword in question for keyword in ("整页", "本页", "这一页", "上下文", "章节", "说明"))
+
+    def _needs_section_read(self, question: str) -> bool:
+        return any(keyword in question for keyword in ("模块", "设计", "流程", "步骤", "组成", "实现"))
 
     def _needs_table_read(self, question: str, matches: list) -> bool:
         if any(match.element_type == "table" for match in matches):

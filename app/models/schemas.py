@@ -48,3 +48,13 @@ class IngestResponse(BaseModel):
     document_id: str
     chunks_indexed: int
     source_path: str
+    duplicate_skipped: bool = False
+    file_hash: str | None = None
+
+
+class ReindexResponse(BaseModel):
+    status: str
+    documents_processed: int
+    chunks_indexed: int
+    collection_size: int
+    message: str

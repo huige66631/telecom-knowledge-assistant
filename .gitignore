@@ -27,3 +27,4 @@ data/page_previews/
 samples/page_previews/
 data/session_memory.db
 data/session_memory.json
+data/document_registry.json

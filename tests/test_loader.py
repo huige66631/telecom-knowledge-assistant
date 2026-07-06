@@ -60,6 +60,30 @@ def test_loader_filters_repeated_page_noise() -> None:
     assert all("Confidential" not in section.text for page in pages for section in page.sections)
 
 
+def test_loader_does_not_promote_sentence_to_heading() -> None:
+    loader = DocumentLoader()
+
+    sections = loader._build_page_sections(
+        "3.3 OFDM发射端模块设计\n\nOFDM 发射端由比特填充、调制映射、子载波装载、前导插入、IFFT 和\n\n循环前缀添加组成。",
+        page_number=1,
+    )
+
+    assert sections[0].metadata["element_type"] == "heading"
+    assert sections[1].metadata["element_type"] == "paragraph"
+    assert sections[1].metadata["section_title"] == "3.3 OFDM发射端模块设计"
+
+
+def test_loader_marks_toc_entries() -> None:
+    loader = DocumentLoader()
+
+    sections = loader._build_page_sections(
+        "3.1 系统总体方案设计 ............................................................ 8\n\n3.2 语音输入与预处理模块设计 ................................................... 8",
+        page_number=1,
+    )
+
+    assert all(section.metadata["element_type"] == "toc_entry" for section in sections)
+
+
 def test_loader_builds_mineru_command_for_pipeline_backend(tmp_path: Path) -> None:
     loader = DocumentLoader()
     settings = loader.settings

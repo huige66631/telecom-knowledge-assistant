@@ -1,4 +1,4 @@
-# Telecom Knowledge Assistant
+# Enterprise Knowledge Assistant
 
 面向通信/电子行业资料场景的企业知识助手 Agent，适合作为 GitHub 展示项目和 AI 应用开发 / Agent / RAG 岗位的简历项目。
 

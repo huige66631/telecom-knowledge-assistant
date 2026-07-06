@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "Telecom Knowledge Assistant"
+    app_name: str = "Enterprise Knowledge Assistant"
     app_env: str = "development"
     app_host: str = "0.0.0.0"
     app_port: int = 8000
@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     raw_data_dir: str = "./data/raw"
     processed_data_dir: str = "./data/processed"
     session_store_path: str = "./data/session_memory.db"
+    document_registry_path: str = "./data/document_registry.json"
     knowledge_collection_name: str = "telecom_knowledge_base"
     chunk_size: int = 800
     chunk_overlap: int = 120

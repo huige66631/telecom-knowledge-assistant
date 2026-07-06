@@ -27,6 +27,8 @@ class TextChunker:
         chunk_index = 0
 
         for section in document.sections:
+            if str(section.metadata.get("element_type", "")) == "toc_entry":
+                continue
             section_chunks = self._split_section(section.text, element_type=str(section.metadata.get("element_type", "paragraph")))
 
             for sub_index, section_chunk in enumerate(section_chunks, start=1):

@@ -45,11 +45,13 @@ class LoadedDocument:
 class DocumentLoader:
     """Load raw files into normalized, structured text sections."""
 
-    heading_pattern = re.compile(r"^(\d+(\.\d+){0,4}|[A-Z][A-Z0-9 ._-]{1,80}|第[一二三四五六七八九十0-9]+[章节部分篇])")
+    heading_pattern = re.compile(r"^(\d+(\.\d+){0,4}|第[一二三四五六七八九十0-9]+[章节部分篇])(?:\s+.+)?$")
+    ascii_heading_pattern = re.compile(r"^[A-Z][A-Za-z0-9 ._/\-]{1,80}$")
     table_line_pattern = re.compile(r"\s{2,}|\t|\|")
     figure_pattern = re.compile(r"^(图|figure)\s*[\dA-Za-z一二三四五六七八九十]+", re.IGNORECASE)
     footnote_pattern = re.compile(r"^(\[\d+\]|\(\d+\)|注[:：])")
     page_marker_pattern = re.compile(r"^(page|页)\s*[\divxlc]+$", re.IGNORECASE)
+    toc_entry_pattern = re.compile(r"^.{2,}([._·•\-]{3,}|\s{3,})\s*\d{1,4}$")
 
     def __init__(self) -> None:
         self.settings = get_settings()
@@ -357,6 +359,9 @@ class DocumentLoader:
                 element_type = "table"
                 seen_table += 1
                 title = first_line if self._is_table_title(first_line) else f"Table {seen_table}"
+            elif self._looks_toc_entry(first_line):
+                element_type = "toc_entry"
+                title = first_line
             elif self._is_heading(first_line, lines):
                 element_type = "heading"
                 heading_level = self._infer_heading_level(first_line)
@@ -465,7 +470,7 @@ class DocumentLoader:
 
         for section in sections:
             element_type = str(section.metadata.get("element_type", "paragraph"))
-            if element_type == "page_summary":
+            if element_type in {"page_summary", "toc_entry"}:
                 continue
             if element_type not in seen_types or element_type in {"heading", "table", "figure_caption"}:
                 snippet = section.text.replace("\n", " ").strip()
@@ -481,9 +486,12 @@ class DocumentLoader:
         if not normalized or len(normalized) < 40:
             return "ocr_candidate"
 
+        toc_sections = [section for section in sections if section.metadata.get("element_type") == "toc_entry"]
         table_sections = [section for section in sections if section.metadata.get("element_type") == "table"]
         figure_sections = [section for section in sections if section.metadata.get("element_type") == "figure_caption"]
 
+        if len(toc_sections) >= max(3, len(sections) // 2):
+            return "table_of_contents"
         if table_sections:
             return "table_heavy"
         if figure_sections:
@@ -526,13 +534,17 @@ class DocumentLoader:
     def _is_heading(self, first_line: str, lines: list[str]) -> bool:
         if len(lines) > 2:
             return False
+        if self._looks_toc_entry(first_line):
+            return False
         if self.figure_pattern.match(first_line):
             return False
-        if len(first_line) > 100:
+        if len(first_line) > 80:
             return False
-        if self._is_table_title(first_line):
+        if self._is_sentence_like_line(first_line):
+            return False
+        if self.heading_pattern.fullmatch(first_line):
             return True
-        return bool(self.heading_pattern.match(first_line))
+        return bool(self.ascii_heading_pattern.fullmatch(first_line))
 
     def _infer_heading_level(self, text: str) -> int:
         match = re.match(r"^(\d+(\.\d+){0,4})", text)
@@ -552,6 +564,38 @@ class DocumentLoader:
 
     def _is_table_title(self, text: str) -> bool:
         return bool(re.match(r"^(表|table)\s*[\dA-Za-z一二三四五六七八九十]+", text, re.IGNORECASE))
+
+    def _looks_toc_entry(self, text: str) -> bool:
+        compact = text.strip()
+        if not compact or len(compact) > 180:
+            return False
+        return bool(self.toc_entry_pattern.match(compact))
+
+    def _is_sentence_like_line(self, text: str) -> bool:
+        compact = text.strip()
+        if len(compact) < 12:
+            return False
+        if any(mark in compact for mark in ("。", "；", "：", "？", "！", ":", ";", "?", "!")):
+            return True
+
+        markers = (
+            "采用",
+            "使用",
+            "用于",
+            "实现",
+            "完成",
+            "支持",
+            "包括",
+            "组成",
+            "首先",
+            "随后",
+            "然后",
+            "最终",
+            "通过",
+            "根据",
+            "保证",
+        )
+        return any(marker in compact for marker in markers)
 
     def _looks_scanned_block(self, text: str) -> bool:
         compact = text.replace(" ", "")

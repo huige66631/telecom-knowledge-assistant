@@ -1,0 +1,82 @@
+[
+  {
+    "question": "本文语音链路采用了什么PCM编码",
+    "expected_page": 11,
+    "expected_clues": ["16 bit", "PCM"]
+  },
+  {
+    "question": "本文语音链路采样率是多少",
+    "expected_page": 11,
+    "expected_clues": ["8 kHz"]
+  },
+  {
+    "question": "基线配置采用的FFT长度和CP长度分别是多少",
+    "expected_page": 10,
+    "expected_clues": ["FFT 长度 64", "CP 长度 16"]
+  },
+  {
+    "question": "有效子载波数量是多少",
+    "expected_page": 10,
+    "expected_clues": ["有效子载波 48"]
+  },
+  {
+    "question": "系统支持哪三类语音输入",
+    "expected_page": 11,
+    "expected_clues": ["三类输入", "合成语音", "外部语音文件", "麦克风录音"]
+  },
+  {
+    "question": "QPSK每个符号承载多少bit",
+    "expected_page": 11,
+    "expected_clues": ["QPSK", "2 bit"]
+  },
+  {
+    "question": "16QAM每个符号承载多少bit",
+    "expected_page": 11,
+    "expected_clues": ["16QAM", "4 bit"]
+  },
+  {
+    "question": "AWGN基线实验的BER是多少",
+    "expected_page": 18,
+    "expected_clues": ["BER 为 0"]
+  },
+  {
+    "question": "多径信道下Audio SNR是多少",
+    "expected_page": 19,
+    "expected_clues": ["73.93 dB", "Audio SNR"]
+  },
+  {
+    "question": "16QAM_CP16在AWGN信道下BER是多少",
+    "expected_page": 20,
+    "expected_clues": ["0.008052"]
+  },
+  {
+    "question": "QPSK_CP8在多径信道下Audio SNR是多少",
+    "expected_page": 20,
+    "expected_clues": ["85.95"]
+  },
+  {
+    "question": "设备支持哪些管理协议",
+    "expected_page": 1,
+    "expected_clues": ["SNMPv2c", "SNMPv3", "SSH", "HTTPS", "Telnet"]
+  },
+  {
+    "question": "SNMP有什么使用限制",
+    "expected_page": 1,
+    "expected_clues": ["community", "Trap", "4 组"]
+  },
+  {
+    "question": "热插拔恢复时间要求是多少",
+    "expected_page": 1,
+    "expected_clues": ["30 秒"]
+  },
+  {
+    "question": "接口稳定性测试里丢包率要求是多少",
+    "expected_page": 1,
+    "expected_clues": ["0.01%"]
+  },
+  {
+    "question": "压力测试过程中SSH管理会话有什么要求",
+    "expected_page": 1,
+    "expected_clues": ["SSH", "不应异常断开"]
+  }
+]

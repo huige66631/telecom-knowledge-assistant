@@ -7,11 +7,11 @@ def test_rule_rewrite_uses_related_context_from_summary() -> None:
     result = service.rewrite_with_rules(
         question="那热插拔恢复时间要求是多少？",
         conversation_summary=(
-            "user: 接口稳定性测试里对热插拔有什么要求 | "
+            "user: 接口稳定性测试里对热插拔有什么要求? | "
             "assistant: 根据接口稳定性测试规范，光模块热插拔后接口应在 30 秒内恢复"
         ),
         recent_turns=[
-            {"role": "user", "content": "接口稳定性测试里对热插拔有什么要求"},
+            {"role": "user", "content": "接口稳定性测试里对热插拔有什么要求?"},
             {"role": "assistant", "content": "根据接口稳定性测试规范，光模块热插拔后接口应在 30 秒内恢复"},
         ],
     )
@@ -36,3 +36,19 @@ def test_rule_rewrite_uses_previous_user_turn_for_pronouns() -> None:
     assert result.strategy == "rule_followup"
     assert "某型号交换机支持哪些管理功能" in result.rewritten_question
     assert "支持哪些协议" in result.rewritten_question
+
+
+def test_rule_rewrite_does_not_pollute_explicit_subject_question() -> None:
+    service = QueryRewriteService()
+
+    result = service.rewrite_with_rules(
+        question="这个项目的OFDM发射端模块是怎么设计的",
+        conversation_summary="user: 本文语音链路采用了什么PCM编码",
+        recent_turns=[
+            {"role": "user", "content": "本文语音链路采用了什么PCM编码"},
+            {"role": "assistant", "content": "采用 16 bit 线性 PCM 编码"},
+        ],
+    )
+
+    assert result.rewritten_question == "这个项目的OFDM发射端模块是怎么设计的"
+    assert result.strategy == "none"

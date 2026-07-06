@@ -8,7 +8,9 @@ from app.core.logging import get_logger
 from app.services.generation_service import GenerationService
 
 
-CONTEXTUAL_PREFIX_RE = re.compile(r"^(继续问[:：]?\s*|继续\s*|再问[:：]?\s*|再追问[:：]?\s*|那\s*|那么\s*|然后\s*)")
+CONTEXTUAL_PREFIX_RE = re.compile(
+    r"^(继续问[:：]?\s*|继续\s*|再问[:：]?\s*|再追问[:：]?\s*|那么\s*|然后\s*)"
+)
 CONTEXTUAL_HINTS = (
     "它",
     "它们",
@@ -33,7 +35,7 @@ LIGHT_STOPWORDS = {
     "那个",
     "继续",
     "还有",
-    "一下",
+    "一个",
     "一下子",
 }
 
@@ -59,24 +61,36 @@ class QueryRewriteService:
         recent_turns: list[dict[str, str]] | None = None,
     ) -> QueryRewriteResult:
         normalized = self._normalize(question)
+        turns = recent_turns or []
+
         if not self.settings.query_rewrite_enabled:
             return QueryRewriteResult(rewritten_question=normalized)
 
-        if not self._looks_contextual(normalized, conversation_summary, recent_turns or []):
+        if not self._looks_contextual(normalized, conversation_summary, turns):
             return QueryRewriteResult(rewritten_question=normalized)
 
         focus = self._strip_contextual_prefix(normalized)
-        latest_user_turn = self._latest_user_turn(recent_turns or [])
-        if latest_user_turn and self._contains_pronoun_hint(normalized):
+        latest_user_turn = self._latest_user_turn(turns)
+
+        if (
+            latest_user_turn
+            and self._contains_pronoun_hint(normalized)
+            and self._should_expand_with_previous_turn(normalized, latest_user_turn)
+        ):
+            if self._normalize(latest_user_turn) == normalized:
+                return QueryRewriteResult(rewritten_question=normalized)
             return QueryRewriteResult(
                 rewritten_question=f"{latest_user_turn}。补充问题：{focus}",
                 strategy="rule_followup",
             )
 
+        if self._has_explicit_subject(normalized):
+            return QueryRewriteResult(rewritten_question=normalized)
+
         related_context = self._select_related_context(
             focus=focus,
             conversation_summary=conversation_summary,
-            recent_turns=recent_turns or [],
+            recent_turns=turns,
         )
         if related_context:
             return QueryRewriteResult(
@@ -187,6 +201,38 @@ class QueryRewriteService:
 
     def _contains_pronoun_hint(self, question: str) -> bool:
         return any(hint in question for hint in ("它", "它们", "这个", "这些", "该", "其"))
+
+    def _should_expand_with_previous_turn(self, question: str, previous_turn: str) -> bool:
+        current_keywords = self._extract_keywords(question)
+        previous_keywords = self._extract_keywords(previous_turn)
+
+        if self._has_explicit_subject(question):
+            overlap = {keyword for keyword in current_keywords if keyword in previous_keywords}
+            return len(overlap) >= 1
+
+        return True
+
+    def _has_explicit_subject(self, text: str) -> bool:
+        explicit_patterns = (
+            r"ofdm",
+            r"qpsk",
+            r"16qam",
+            r"pcm",
+            r"fft",
+            r"cp",
+            r"snmp",
+            r"ssh",
+            r"telnet",
+            r"模块",
+            r"发射端",
+            r"接收端",
+            r"设计",
+            r"流程",
+            r"采样率",
+            r"编码",
+        )
+        lowered = text.lower()
+        return any(re.search(pattern, lowered) for pattern in explicit_patterns)
 
     def _extract_keywords(self, text: str) -> list[str]:
         candidates = re.findall(r"[A-Za-z0-9_-]{2,}|[\u4e00-\u9fff]{2,}", text)

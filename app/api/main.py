@@ -56,5 +56,5 @@ async def handle_unexpected_error(_: Request, exc: Exception) -> JSONResponse:
 def read_root() -> dict[str, str]:
     return {
         "name": settings.app_name,
-        "message": "Telecom Knowledge Assistant API is running.",
+        "message": "Enterprise Knowledge Assistant API is running.",
     }

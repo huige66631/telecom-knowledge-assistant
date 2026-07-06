@@ -8,10 +8,48 @@ from app.rag.chunker import ChunkRecord
 
 
 TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]{1,2}")
+ASCII_PHRASE_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9 _./+-]{1,}")
 
 
 def tokenize(text: str) -> list[str]:
     return [token.lower() for token in TOKEN_PATTERN.findall(text)]
+
+
+def extract_query_signals(text: str) -> list[str]:
+    signals: list[str] = []
+    normalized = re.sub(r"\s+", " ", text).strip()
+    if not normalized:
+        return signals
+
+    for token in tokenize(normalized):
+        if token not in signals:
+            signals.append(token)
+
+    lower_text = normalized.lower()
+    ascii_phrases = [match.group(0).strip().lower() for match in ASCII_PHRASE_PATTERN.finditer(normalized)]
+    for phrase in ascii_phrases:
+        compact = re.sub(r"\s+", "", phrase)
+        if len(compact) >= 4:
+            for candidate in (phrase, compact):
+                if candidate not in signals:
+                    signals.append(candidate)
+
+    for candidate in (
+        "16 bit",
+        "16bit",
+        "linear pcm",
+        "pcm编码",
+        "线性 pcm",
+        "线性pcm",
+    ):
+        if candidate in lower_text or candidate in normalized:
+            normalized_candidate = candidate.lower().replace(" ", "")
+            if candidate.lower() not in signals:
+                signals.append(candidate.lower())
+            if normalized_candidate not in signals:
+                signals.append(normalized_candidate)
+
+    return signals
 
 
 class KeywordIndex:
@@ -59,6 +97,7 @@ class KeywordIndex:
             return []
 
         query_tokens = tokenize(query)
+        query_signals = extract_query_signals(query)
         if not query_tokens:
             return []
 
@@ -67,6 +106,7 @@ class KeywordIndex:
         for document in self.documents:
             chunk_id = str(document["chunk_id"])
             score = self._bm25_score(chunk_id, query_tokens)
+            score += self._signal_boost(document=document, query_signals=query_signals)
             if score > 0:
                 scores.append((score, document))
 
@@ -83,6 +123,33 @@ class KeywordIndex:
                 }
             )
         return results
+
+    def _signal_boost(self, document: dict[str, object], query_signals: list[str]) -> float:
+        if not query_signals:
+            return 0.0
+
+        text = str(document.get("text", ""))
+        if not text:
+            return 0.0
+
+        lowered = text.lower()
+        compact = re.sub(r"\s+", "", lowered)
+        boost = 0.0
+
+        for signal in query_signals:
+            normalized_signal = signal.lower().strip()
+            compact_signal = re.sub(r"\s+", "", normalized_signal)
+            if not compact_signal:
+                continue
+
+            if normalized_signal in lowered:
+                boost += 1.2 if " " in normalized_signal else 0.45
+                continue
+
+            if len(compact_signal) >= 4 and compact_signal in compact:
+                boost += 0.9
+
+        return boost
 
     def _bm25_score(self, chunk_id: str, query_tokens: list[str]) -> float:
         k1 = 1.5

@@ -32,7 +32,7 @@ class ChatService:
             recent_turns=recent_turns,
         )
         matches = state.get("matches", [])
-        citations = self.citation_service.build_citations(matches)
+        citations = self.citation_service.build_citations(matches, query=request.question)
         answer = state.get("answer", "系统暂时没有生成结果。")
 
         session_memory_store.append_turn(session.session_id, "user", request.question)

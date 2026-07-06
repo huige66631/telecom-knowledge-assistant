@@ -84,6 +84,25 @@ class ChromaVectorStore:
             )
         return chunks
 
+    def delete_document_chunks(self, document_id: str) -> int:
+        chunks = self.get_all_chunks()
+        target_ids = [
+            str(chunk["chunk_id"])
+            for chunk in chunks
+            if str((chunk.get("metadata", {}) or {}).get("document_id", "")) == document_id
+        ]
+        if not target_ids:
+            return 0
+        self.collection.delete(ids=target_ids)
+        return len(target_ids)
+
+    def reset_collection(self) -> None:
+        self.client.delete_collection(self.settings.knowledge_collection_name)
+        self.collection = self.client.get_or_create_collection(
+            name=self.settings.knowledge_collection_name,
+            metadata={"domain": "telecom_knowledge_assistant"},
+        )
+
     def get_chunks_by_page(self, source_name: str, page: int) -> list[dict[str, object]]:
         return self._filter_chunks(source_name=source_name, page=page)
 

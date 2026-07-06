@@ -15,6 +15,7 @@ class AgentState(TypedDict, total=False):
     route: AgentRoute
     matches: list[RetrievedChunk]
     page_evidence: list[RetrievedChunk]
+    section_evidence: list[RetrievedChunk]
     table_evidence: list[RetrievedChunk]
     figure_evidence: list[RetrievedChunk]
     answer: str
