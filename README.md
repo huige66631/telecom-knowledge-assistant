@@ -1,7 +1,5 @@
 # Enterprise Knowledge Assistant
 
-面向通信/电子行业资料场景的企业知识助手 Agent，适合作为 GitHub 展示项目和 AI 应用开发 / Agent / RAG 岗位的简历项目。
-
 这个项目不是通用聊天机器人，而是一个更贴近企业资料场景的知识工作台：
 
 - 支持上传产品手册、FAQ、技术文档、测试规范
